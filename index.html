@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Be the Threads – Threads and Cores Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --table:#DCE5EC; --panel:#F6F9FB; --ink:#1F2D3A; --muted:#5A6B7A; --line:#B9C7D3;
+  --card:#FFFFFF; --cardDone:#E7EDF2; --pen:#E0A100; --penInk:#3A2A00; --accent:#0F5F8A;
+  --wait:#B4503C; --ok:#2E7D4F;
+  color-scheme: light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --table:#16212A; --panel:#1E2B36; --ink:#E8EEF3; --muted:#9FB0BF; --line:#33475A;
+    --card:#26394A; --cardDone:#1B2833; --pen:#F2B92B; --penInk:#2A1E00; --accent:#7CC3EA;
+    --wait:#F08A73; --ok:#7BD3A0; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --table:#16212A; --panel:#1E2B36; --ink:#E8EEF3; --muted:#9FB0BF; --line:#33475A;
+  --card:#26394A; --cardDone:#1B2833; --pen:#F2B92B; --penInk:#2A1E00; --accent:#7CC3EA;
+  --wait:#F08A73; --ok:#7BD3A0; color-scheme: dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--table);color:var(--ink);
+  font-family:"Atkinson Hyperlegible",Verdana,"Segoe UI",Arial,sans-serif;font-size:18px;line-height:1.45}
+main{max-width:1180px;margin:0 auto;padding:24px 20px 40px}
+h1{font-size:2.4rem;line-height:1.1;margin:0 0 6px;letter-spacing:-.01em}
+.lede{margin:0 0 20px;max-width:70ch;color:var(--muted)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:20px}
+@media (max-width:900px){.layout{grid-template-columns:1fr}}
+section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+h2{font-size:1.15rem;margin:0 0 10px}
+/* controls */
+.controls{display:grid;gap:14px}
+.ctl label{display:flex;justify-content:space-between;font-weight:700}
+.ctl output{font-variant-numeric:tabular-nums;color:var(--accent);font-size:1.3rem}
+input[type=range]{width:100%;accent-color:var(--accent);height:28px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button,select{font:inherit;font-size:1rem;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--ink);padding:8px 14px;cursor:pointer}
+button.primary{background:var(--accent);color:var(--panel);border-color:var(--accent);font-weight:700}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--pen);outline-offset:2px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.presets button{padding:6px 10px;font-size:.95rem}
+.realex{margin:10px 0 0;padding:10px 12px;border-left:4px solid var(--accent);background:var(--card);border-radius:6px;font-size:.95rem}
+.realex:empty{display:none}
+.check{display:flex;gap:8px;align-items:flex-start;font-size:.95rem}
+.check input{width:20px;height:20px;margin-top:2px;accent-color:var(--accent)}
+.rules{font-size:.9rem;color:var(--muted);margin:0}
+/* stage */
+.clock{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.clock .time{font-size:3rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.clock .phase{color:var(--muted)}
+.cores{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.core{flex:1 1 120px;min-width:110px;border:2px dashed var(--line);border-radius:12px;padding:8px 10px;min-height:66px}
+.core .cname{font-size:.85rem;color:var(--muted)}
+.core .who{font-weight:700;font-size:1.05rem;display:flex;align-items:center;gap:8px}
+.pen{display:inline-block;width:12px;height:40px;border-radius:3px 3px 6px 6px;background:var(--pen);
+  box-shadow:inset 0 -8px 0 var(--penInk);transform:rotate(18deg)}
+.core.busy{border-style:solid;border-color:var(--tc,var(--accent))}
+.core.switch .who{color:var(--muted)}
+.lanes{display:grid;gap:8px}
+.lane{display:grid;grid-template-columns:88px 1fr 128px;gap:10px;align-items:center;
+  border-left:6px solid var(--tc);background:var(--card);border-radius:8px;padding:6px 10px}
+.lane .tname{font-weight:700}
+.lane .state{font-size:.9rem}
+.state.run{color:var(--ok);font-weight:700}
+.state.wait{color:var(--wait);font-weight:700}
+.state.done{color:var(--muted)}
+.bar{height:14px;border-radius:7px;background:var(--cardDone);overflow:hidden}
+.bar > i{display:block;height:100%;width:0;background:var(--tc)}
+.sub{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.pile{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:6px;margin-top:14px}
+.c{background:var(--card);border:1px solid var(--line);border-top:5px solid var(--tc,var(--line));
+  border-radius:6px;text-align:center;padding:4px 0 2px;font-weight:700;font-variant-numeric:tabular-nums}
+.c small{display:block;font-weight:400;font-size:.65rem;color:var(--muted)}
+.c.done{background:var(--cardDone);color:var(--muted);text-decoration:line-through}
+.c.now{outline:3px solid var(--pen)}
+.result{margin-top:14px;padding:12px 14px;border-radius:10px;background:var(--card);border:1px solid var(--line);display:none}
+.result.show{display:block}
+.result strong{font-size:1.2rem}
+/* history */
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.95rem}
+th,td{text-align:right;padding:6px 6px;border-bottom:1px solid var(--line)}
+td{white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td .hb{display:inline-block;height:10px;background:var(--accent);border-radius:5px;vertical-align:middle;margin-right:6px}
+.empty{color:var(--muted);font-size:.95rem}
+.qs{margin:0;padding-left:20px}
+.qs li{margin-bottom:6px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Be the Threads</h1>
+  <p class="lede">A program has to add up 40 numbers. Split the work among threads, choose how many cores the computer has, and watch which threads run and which wait. More threads are not always faster.</p>
+
+  <div class="layout">
+    <section aria-labelledby="stage-h">
+      <h2 id="stage-h" class="sr">Simulation</h2>
+      <div class="clock" aria-live="polite">
+        <span class="time" id="time">0.0 s</span>
+        <span class="phase" id="phase">Press Run to start.</span>
+      </div>
+      <div class="cores" id="cores" aria-label="Cores"></div>
+      <div class="lanes" id="lanes" aria-label="Threads"></div>
+      <div class="pile" id="pile" aria-label="Numbers to add"></div>
+      <div class="result" id="result" role="status"></div>
+    </section>
+
+    <div class="controls">
+      <section aria-labelledby="set-h">
+        <h2 id="set-h">Set up a run</h2>
+        <div class="controls">
+          <div class="ctl">
+            <label for="threads">Threads <output id="threadsOut">2</output></label>
+            <input type="range" id="threads" min="1" max="8" value="2">
+          </div>
+          <div class="ctl">
+            <label for="cores-in">Cores <output id="coresOut">2</output></label>
+            <input type="range" id="cores-in" min="1" max="8" value="2">
+          </div>
+          <div class="ctl">
+            <label for="speed">Animation speed <output id="speedOut">Normal</output></label>
+            <input type="range" id="speed" min="1" max="4" value="2">
+          </div>
+          <label class="check"><input type="checkbox" id="overhead" checked> <span>Include real-world costs: context switches and combining the subtotals at the end</span></label>
+          <div class="row">
+            <button class="primary" id="run">Run</button>
+            <button id="reset">Reset</button>
+          </div>
+          <div>
+            <p class="sub" style="margin:0 0 6px">Try these</p>
+            <div class="row presets">
+              <button data-t="1" data-c="1">1 thread, 1 core</button>
+              <button data-t="2" data-c="2">2 threads, 2 cores</button>
+              <button data-t="4" data-c="2">4 threads, 2 cores</button>
+              <button data-t="8" data-c="2">8 threads, 2 cores</button>
+              <button data-t="4" data-c="4">4 threads, 4 cores</button>
+            </div>
+            <p class="realex" id="realEx" aria-live="polite"></p>
+          </div>
+          <p class="rules">Adding one number takes 1 s of CPU time. A thread can only work while it has a core. When there are more threads than cores, they take turns, 3 numbers at a time; switching a core to another thread (a context switch) costs 0.5 s. At the end, the main thread combines the subtotals, 1 s each.</p>
+        </div>
+      </section>
+
+      <section aria-labelledby="hist-h">
+        <h2 id="hist-h">Your runs</h2>
+        <p class="empty" id="histEmpty">Finished runs appear here so you can compare them.</p>
+        <table id="hist" hidden>
+          <thead><tr><th>Threads / cores</th><th>Time</th><th>Speed-up</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="row" style="margin-top:10px"><button id="clearHist">Clear runs</button></div>
+      </section>
+
+      <section aria-labelledby="q-h">
+        <h2 id="q-h">Think about it</h2>
+        <ol class="qs">
+          <li>Why is 2 threads on 2 cores about twice as fast as 1 thread?</li>
+          <li>Why is 4 threads on 2 cores <em>not</em> faster than 2 threads on 2 cores?</li>
+          <li>What changes when you give 4 threads 4 cores?</li>
+          <li>Turn off the real-world costs. Which results change, and why?</li>
+        </ol>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script>
+(function(){
+  // ---- card sets (same numbers as the printed Word cards) ----
+  let seed = 20261102;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  const SETS = {};
+  ['A','B','C'].forEach(s => { SETS[s] = Array.from({length:40}, () => 10 + Math.floor(rnd() * 90)); });
+
+  const COLORS = ['#2F7FBF','#C2410C','#2E8B57','#8E44AD','#B8860B','#D6336C','#0E9AA7','#6B7A1F'];
+  const DT = 0.5, CARD = 1, SWITCH = 0.5, SLICE = 3, COMBINE = 1;
+  const $ = id => document.getElementById(id);
+  const thr = $('threads'), cor = $('cores-in'), spd = $('speed');
+  let st = null, timer = null, history = [];
+
+  const EXAMPLES = {
+    '1/1': 'A VirtualBox VM set to 1 processor on an Intel or AMD laptop – or an older program that uses only one thread, leaving the laptop’s other cores idle.',
+    '2/2': 'Your Lab Part 3 VM with 2 processors, or a budget dual-core laptop such as an Intel Celeron N4020 or AMD Athlon Silver 3050U.',
+    '4/2': 'Running par_primes with 4 threads on your 2-processor Lab VM – exactly what Lab Part 3, Q3 asks about.',
+    '8/2': 'A dual-core Intel Celeron or AMD Athlon laptop running Chrome, Teams and a game at the same time – this is when it starts to lag.',
+    '4/4': 'An Apple M1 MacBook Air (4 performance cores), or an Intel Core i5-1135G7 or AMD Ryzen 5 3500U laptop (4 cores), running a 4-thread photo filter.'
+  };
+  function showEx(){
+    const ex = EXAMPLES[thr.value + '/' + cor.value];
+    $('realEx').innerHTML = ex ? '<strong>Real example:</strong> ' + ex : '';
+  }
+  function sync(){
+    showEx();
+    $('threadsOut').textContent = thr.value;
+    $('coresOut').textContent = cor.value;
+    $('speedOut').textContent = ['Slow','Normal','Fast','Very fast'][spd.value - 1];
+  }
+
+  function setup(){
+    stop();
+    const n = +thr.value, c = +cor.value, cards = SETS.A;
+    const per = Math.floor(40 / n), extra = 40 % n;
+    const threads = []; let start = 0;
+    for (let i = 0; i < n; i++){
+      const len = per + (i < extra ? 1 : 0);
+      threads.push({id:i, color:COLORS[i], from:start, to:start + len, next:start, prog:0, sub:0, core:-1, done:false});
+      start += len;
+    }
+    st = {n, c, cards, threads, t:0, phase:'idle', overhead:$('overhead').checked,
+          cores: Array.from({length:c}, () => ({th:-1, last:-1, slice:0, sw:0})),
+          queue: threads.map(t => t.id), doneCards:new Set(), combineLeft:0, combined:0, finished:false};
+    // first dispatch is free
+    st.cores.forEach(k => { if (st.queue.length){ const id = st.queue.shift(); k.th = id; k.last = id; k.slice = SLICE; threads[id].core = st.cores.indexOf(k); } });
+    $('result').className = 'result'; $('result').innerHTML = '';
+    render();
+  }
+
+  function step(){
+    if (st.phase === 'combine'){
+      st.t += DT; st.combineLeft -= DT;
+      if (st.combineLeft <= 1e-9){ st.phase = 'end'; finish(); }
+      render(); return;
+    }
+    st.phase = 'run';
+    st.t += DT;
+    st.cores.forEach((k, ci) => {
+      if (k.sw > 0){ k.sw -= DT; return; }
+      if (k.th < 0) return;
+      const th = st.threads[k.th];
+      th.prog += DT;
+      if (th.prog >= CARD - 1e-9){
+        th.prog = 0; st.doneCards.add(th.next); th.sub += st.cards[th.next]; th.next++; k.slice--;
+        if (th.next >= th.to){ th.done = true; th.core = -1; k.th = -1; }
+        else if (k.slice <= 0 && st.queue.length){ th.core = -1; st.queue.push(th.id); k.th = -1; }
+        else if (k.slice <= 0){ k.slice = SLICE; }
+      }
+    });
+    // give free cores to waiting threads
+    st.cores.forEach((k, ci) => {
+      if (k.th < 0 && k.sw <= 0 && st.queue.length){
+        const id = st.queue.shift(); const changed = k.last !== -1 && k.last !== id;
+        k.th = id; k.last = id; k.slice = SLICE; st.threads[id].core = ci;
+        if (changed && st.overhead) k.sw = SWITCH;
+      }
+    });
+    if (st.threads.every(t => t.done)){
+      st.cores.forEach(k => { k.th = -1; k.sw = 0; });
+      const cost = st.overhead ? (st.n - 1) * COMBINE : 0;
+      if (cost > 0){ st.phase = 'combine'; st.combineLeft = cost; }
+      else { st.phase = 'end'; finish(); }
+    }
+    render();
+  }
+
+  function finish(){
+    stop(); st.finished = true;
+    const total = st.threads.reduce((a,t) => a + t.sub, 0);
+    const base = 40 * CARD;
+    const speedup = base / st.t;
+    history.push({n:st.n, c:st.c, t:st.t, s:speedup, oh:st.overhead});
+    const r = $('result');
+    r.innerHTML = `<strong>Done in ${st.t.toFixed(1)} s</strong> – sum of all 40 numbers: ${total}.<br>` +
+      `Speed-up compared with 1 thread: <strong>${speedup.toFixed(2)}×</strong>. ` + explain();
+    r.className = 'result show';
+    renderHistory();
+    $('run').textContent = 'Run again';
+  }
+
+  function explain(){
+    const {n, c} = st;
+    if (n === 1) return 'One thread does all the work, so no time is saved – and none is lost.';
+    if (n <= c) return `Every thread had its own core, so they all worked in parallel.${n < c ? ' Some cores sat idle.' : ''}`;
+    return `There were more threads than cores, so ${n - c} thread${n - c > 1 ? 's' : ''} had to wait for a core. Waiting threads make progress only by taking turns – that is concurrency, not extra parallelism.`;
+  }
+
+  function render(){
+    $('time').textContent = st.t.toFixed(1) + ' s';
+    $('phase').textContent = st.phase === 'idle' ? 'Press Run to start.' :
+      st.phase === 'combine' ? `Combining ${st.n} subtotals…` :
+      st.phase === 'end' ? 'Finished.' : 'Adding cards…';
+    // cores
+    $('cores').innerHTML = st.cores.map((k, i) => {
+      const th = k.th >= 0 ? st.threads[k.th] : null;
+      const cls = k.sw > 0 ? 'core switch' : th ? 'core busy' : 'core';
+      const who = k.sw > 0 ? 'Context switch…' : th ? `Thread ${th.id + 1}` :
+        st.phase === 'combine' && i === 0 ? 'Combining subtotals' : 'Free';
+      return `<div class="${cls}" style="--tc:${th ? th.color : 'var(--accent)'}"><div class="cname">Core ${i + 1}</div><div class="who">${who}</div></div>`;
+    }).join('');
+    // lanes
+    $('lanes').innerHTML = st.threads.map(t => {
+      const len = t.to - t.from, doneN = t.next - t.from;
+      const state = t.done ? '<span class="state done">Done</span>' :
+        t.core >= 0 ? `<span class="state run">Working on core ${t.core + 1}</span>` :
+        st.phase === 'idle' ? '<span class="state">Ready</span>' : '<span class="state wait">Waiting for a core</span>';
+      return `<div class="lane" style="--tc:${t.color}"><span class="tname">Thread ${t.id + 1}</span>` +
+        `<div><div class="bar"><i style="width:${(doneN / len * 100).toFixed(1)}%"></i></div>` +
+        `<div class="sub">Cards ${String(t.from + 1).padStart(2,'0')}–${String(t.to).padStart(2,'0')} · ${doneN}/${len} added</div></div>` +
+        `<div>${state}<div class="sub">Subtotal ${t.sub}</div></div></div>`;
+    }).join('');
+    // pile
+    const owner = i => st.threads.find(t => i >= t.from && i < t.to);
+    const current = new Set(st.cores.filter(k => k.th >= 0 && k.sw <= 0).map(k => st.threads[k.th].next));
+    $('pile').innerHTML = st.cards.map((v, i) => {
+      const o = owner(i), cls = 'c' + (st.doneCards.has(i) ? ' done' : '') + (current.has(i) && st.phase === 'run' ? ' now' : '');
+      return `<div class="${cls}" style="--tc:${o.color}">${v}<small>${String(i + 1).padStart(2,'0')}</small></div>`;
+    }).join('');
+  }
+
+  function renderHistory(){
+    const tb = document.querySelector('#hist tbody');
+    const max = Math.max(...history.map(h => h.t));
+    tb.innerHTML = history.map(h => `<tr><td>${h.n} / ${h.c}${h.oh ? '' : ' (no costs)'}</td>` +
+      `<td><span class="hb" style="width:${(h.t / max * 60).toFixed(0)}px"></span>${h.t.toFixed(1)} s</td><td>${h.s.toFixed(2)}×</td></tr>`).join('');
+    $('hist').hidden = history.length === 0; $('histEmpty').hidden = history.length > 0;
+  }
+
+  function play(){
+    if (!st || st.finished) setup();
+    if (timer) return;
+    const ms = [260, 130, 60, 20][spd.value - 1];
+    timer = setInterval(step, ms);
+    $('run').textContent = 'Pause';
+  }
+  function stop(){ if (timer){ clearInterval(timer); timer = null; } $('run').textContent = st && st.finished ? 'Run again' : 'Run'; }
+
+  $('run').addEventListener('click', () => { if (timer) stop(); else play(); });
+  $('reset').addEventListener('click', setup);
+  $('clearHist').addEventListener('click', () => { history = []; renderHistory(); });
+  [thr, cor].forEach(el => el.addEventListener('input', () => { sync(); setup(); }));
+  $('overhead').addEventListener('change', setup);
+  spd.addEventListener('input', () => { sync(); if (timer){ clearInterval(timer); timer = null; play(); } });
+  document.querySelectorAll('.presets button').forEach(b => b.addEventListener('click', () => {
+    thr.value = b.dataset.t; cor.value = b.dataset.c; sync(); setup(); play();
+  }));
+  sync(); setup(); renderHistory();
+})();
+</script>
+</body>
+</html>
