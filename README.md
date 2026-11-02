@@ -10,6 +10,6 @@ Open `index.html` in any modern browser. No installation or build step is needed
 ## Try these
 - 1 thread, 1 core
 - 2 threads, 2 cores
-- 4 threads, 2 cores (Lab Part 3, Q3)
+- 4 threads, 2 cores
 - 8 threads, 2 cores
 - 4 threads, 4 cores
